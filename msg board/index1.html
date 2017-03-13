@@ -1,0 +1,213 @@
+﻿<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title></title>
+<link href="style/weibo.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+<div class="nArea">
+<!--留言-->
+     <div class="takeComment">
+        <textarea name="textarea" class="takeTextField" id="tijiaoText"></textarea>
+        <div class="takeSbmComment">
+            <input type="button" id="btn1" class="inputs" value="" />
+            <span>(可按 Enter 回复)</span>
+        </div>
+    </div>
+<!--已留-->
+    <div class="commentOn">
+        <div class="messList" id="div1" style="height:502px">
+        	<!-- <div class="reply">
+                  <p class="replyContent">卫士，新款卫士将推出总共14种车身式样。其中， XS旅行款车型售价为32295英镑(约33.6万元)。</p>
+                  <p class="operation">
+                      <span class="replyTime">2018-09-08 16:37:60</span>
+                      <span class="handle">
+                        <a href="javascript:;" class="top">0</a>
+                          <a href="javascript:;" class="down_icon">0</a>
+                          <a href="javascript:;" class="cut">删除</a>
+                      </span>
+                  </p>
+              </div> -->
+        </div>
+        <div class="page" id="page">
+          <a href="javascript:;" id='prev' style="display:none">上一页</a>
+        	<a href="javascript:;" class="active" style="display:none">1</a>
+        	<a href="javascript:;" style="display:none">2</a>
+        	<a href="javascript:;" style="display:none">3</a>
+          <a href="javascript:;" id='next' style="display:none">下一页</a>
+
+        </div>
+    </div>
+</div>
+</body>
+<script src="jquery-3.1.1.js" type="text/javascript" charset="utf-8"></script>
+<script type="text/javascript">
+  var nowPage = 1;
+  var nowCount = 0;
+  $(function(){
+    getPage();
+    getContent();
+  });
+	$('#btn1').click(function(){
+    $.ajax({
+      url:'weibo.php',
+      data:{
+        act:'add',
+        content:$('#tijiaoText').val()
+      },
+      success:function(data){
+        data = eval('('+data+')');
+        if(!data.error){
+          data.content = $('#tijiaoText').val();
+          data.acc = data.ref = 0;
+          new Render(data,'prepend');
+          $('#tijiaoText').val('');
+          getPage();
+        }
+      }
+    });
+  });
+  $('#page').find('a').click(function(){
+    $('#div1').empty();
+    if(this.id=='next'){
+      nowPage++;
+    }
+    else if(this.id=='prev'){
+      nowPage--;
+    }else{
+      nowPage = Number(this.innerHTML);
+    }
+    getContent();
+    new RenderPage(nowPage,nowCount);
+  })
+  function Render(ele,oper){
+    var date = new Date(ele.time*1000);//服务器时间是以秒为单位。
+    var year = date.getFullYear();
+    var Month = date.getMonth()+1;
+    var d = date.getDate();
+    var sen = date.getSeconds();
+    var min = date.getMinutes();
+    var Hou = date.getHours();
+    function tDou(n){
+      return n<10?'0'+n:''+n;
+    }
+    var str = year+'-'+tDou(Month)+'-'+tDou(d)+' '+tDou(Hou)+':'+tDou(min)+':'+tDou(sen);
+    var reply = $(`<div class="reply" data-id=${ele.id}>
+                    <p class="replyContent">${ele.content}</p>
+                    <p class="operation">
+                        <span class="replyTime">${str}</span>
+                        <span class="handle">
+                          <a href="javascript:;" class="top">${ele.acc}</a>
+                          <a href="javascript:;" class="down_icon">${ele.ref}</a>
+                          <a href="javascript:;" class="cut">删除</a>
+                        </span>
+                    </p>
+                </div>`);
+    $('#div1')[oper](reply);
+    new Handle();
+  }
+  function RenderPage(now,total){
+    if(total>0){
+      $('#page').find('a:lt('+(total+1)+')').not('#prev').css('display','inline-block');
+      $('#page').find('a:gt('+total+')').css('display','none');
+    }
+    if(now != total&&total!=0){
+      $('#next').css('display','inline-block');
+    }else{
+      $('#next').css('display','none');
+      $('#page').find('a').eq('1').html(total-2).removeClass('active');
+      $('#page').find('a').eq('2').html(total-1).removeClass('active');
+      $('#page').find('a').eq('3').html(total).addClass('active');
+    }
+    if(now != 1){
+      $('#prev').css('display','inline-block');
+    }else{
+      $('#prev').css('display','none');
+      $('#page').find('a').eq('1').html(now).addClass('active');
+      $('#page').find('a').eq('2').html(now+1).removeClass('active');
+      $('#page').find('a').eq('3').html(now+2).removeClass('active');
+    }
+    if(now != 1&& now !=total){
+      $('#page').find('a').eq('1').html(now-1).removeClass('active');
+      $('#page').find('a').eq('2').html(now).addClass('active');
+      $('#page').find('a').eq('3').html(now+1).removeClass('active');
+    }
+  }
+  function getContent(){
+    $.ajax({//加载页面时渲染数据.
+      url:"weibo.php",
+      data:{
+        act:'get',
+        page:nowPage
+      },
+      success:function(data){
+        //console.log(data,typeof data);
+        var data = (new Function('','return '+data))();
+        //console.log(data,typeof data);
+        // var datab = eval('('+data+')');
+        // console.log(datab,typeof datab,data,typeof data);
+        // data.forEach(function(ele,index){
+        //   console.log(index);
+        // });
+        $.each(data,function(index,ele){
+          new Render(ele,'append');
+        });
+      }
+    });
+  }
+  function getPage(){
+    $.ajax({
+      url:"weibo.php",
+      data:{
+        act:'get_page_count'
+      },
+      success:function(data){
+        var data = eval('('+data+')');
+        nowCount = data.count;
+        new RenderPage(nowPage,nowCount);
+      }
+    });
+  }
+  function Handle(){
+    this.handle = $('.handle');
+    var _this = this;
+    this.handle.find('a').off().on('click',function(){//给赞踩删除加事件
+      _this.aFn(this);
+    });
+  }
+  Handle.prototype.aFn = function(a){
+    var act ='';
+    switch(a.className)
+    {
+      case 'top':act = 'acc';break;
+      case 'down_icon':act = 'ref';break;
+      case 'cut':act = 'del';break;
+      default:act = 'error' ;
+    }
+    if(act != 'error'){
+      $.ajax({
+        url:"weibo.php",
+        data:{
+          act:act,
+          id:a.closest('.reply').dataset.id
+        },
+        success:function(data){
+          if(data != ''){//即使传错误的act也会200.返回数据为空.
+            var data = eval('('+data+')');
+            if(!data.error){
+               if(act == 'del'){
+                 $('#div1').empty();
+                 getPage();
+                 getContent();
+               }else{
+                 a.innerHTML = Number(a.innerHTML)+1;// 赞和踩成功后的操作.
+               }
+             }
+          }
+        }
+      });
+    }
+  }
+</script>
+</html>
